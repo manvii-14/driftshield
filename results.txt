@@ -1,0 +1,5 @@
+NFCorpus Retrieval Results
+
+Hit Rate@5:0.6253869969040248
+
+This is the retrieval-quality baseline for the current RAG pipeline.
