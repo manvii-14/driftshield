@@ -74,3 +74,15 @@ def hit_rate_at_k(queries, qrels_by_query, retrieve_fn, k=5):
 print("Evaluating hit rate...")
 score = hit_rate_at_k(queries, qrels_by_query, retrieve)
 print("Hit rate:", score)
+# Build a second index using the after-corpus (scifact)
+index_after = faiss.IndexFlatL2(emb_after.shape[1])
+index_after.add(emb_after)
+
+def retrieve_after(query, k=5):
+    q_emb = model.encode([query])
+    distances, indices = index_after.search(q_emb, k)
+    return [ids_after[i] for i in indices[0]]
+
+print("Evaluating hit rate on after-corpus...")
+score_after = hit_rate_at_k(queries, qrels_by_query, retrieve_after)
+print("Hit rate (after):", score_after)
