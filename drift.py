@@ -53,11 +53,11 @@ print("Average energy distance:", avg_energy)
 
 # --- Final chart ---
 hit_rate_before = 0.6253869969040248  # <-- fill in from Person 1's results.txt
-hit_rate_after = 0.0   # <-- fill in from Person 1's results.txt
+hit_rate_after = 0.7266666666666667   # <-- fill in from Person 1's results.txt
 
 fig, ax1 = plt.subplots()
 ax1.bar(["Before", "After"], [hit_rate_before, hit_rate_after], color="skyblue")
 ax1.set_ylabel("Retrieval Hit-Rate")
-plt.title("Drift Detected → RAG Quality Drop")
+plt.title("Retrieval hit-rate on each corpus's own queries")
 plt.savefig("result_chart.png")
 print("Saved result_chart.png")

@@ -1,103 +1,90 @@
-from datasets import load_dataset
+import os
+import json
 import numpy as np
 import faiss
-from sentence_transformers import SentenceTransformer
 from collections import defaultdict
+from datasets import load_dataset
+
+K = 5
 
 print("Loading datasets...")
 corpus_before = load_dataset("BeIR/nfcorpus", "corpus")["corpus"]
 corpus_after = load_dataset("BeIR/scifact", "corpus")["corpus"]
-print("Before docs:", len(corpus_before))
-print("After docs:", len(corpus_after))
-
-print("Loading embedding model (first time takes a minute)...")
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# Keep ids aligned with texts so retrieval can return ids, not raw text
-ids_before = [doc["_id"] for doc in corpus_before]
-texts_before = [doc["text"] for doc in corpus_before]
-
-ids_after = [doc["_id"] for doc in corpus_after]
-texts_after = [doc["text"] for doc in corpus_after]
-
-print("Embedding before-corpus...")
-emb_before = model.encode(texts_before, show_progress_bar=True)
-print("Embedding after-corpus...")
-emb_after = model.encode(texts_after, show_progress_bar=True)
-
-np.save("emb_before.npy", emb_before)
-np.save("emb_after.npy", emb_after)
-print("Saved embeddings. Shapes:", emb_before.shape, emb_after.shape)
-
-index = faiss.IndexFlatL2(emb_before.shape[1])
-index.add(emb_before)
-
-def retrieve(query, k=5):
-    """Returns doc IDs — used for evaluation against qrels."""
-    q_emb = model.encode([query])
-    distances, indices = index.search(q_emb, k)
-    return [ids_before[i] for i in indices[0]]
-
-def retrieve_text(query, k=5):
-    """Returns doc text — used for human-readable sanity checks."""
-    q_emb = model.encode([query])
-    distances, indices = index.search(q_emb, k)
-    return [texts_before[i] for i in indices[0]]
-
-# test it — print actual text for inspection
-results = retrieve_text("What causes inflammation?", k=3)
-for r in results:
-    print(r[:200], "\n---")
-
-print("Loading qrels and queries (before-corpus / nfcorpus)...")
-qrels = load_dataset("BeIR/nfcorpus-qrels")["test"]
-queries = load_dataset("BeIR/nfcorpus", "queries")["queries"]
-
-# Pre-group qrels by query-id so we don't rescan the whole list per query
-print("Indexing qrels...")
-qrels_by_query = defaultdict(list)
-for r in qrels:
-    qrels_by_query[r["query-id"]].append(r["corpus-id"])
-
-def hit_rate_at_k(queries, qrels_by_query, retrieve_fn, k=5):
-    hits = 0
-    total = 0
-    for q in queries:
-        retrieved = retrieve_fn(q["text"], k=k)
-        relevant_ids = qrels_by_query.get(q["_id"], [])
-        if relevant_ids:
-            total += 1
-            if any(doc in retrieved for doc in relevant_ids):
-                hits += 1
-    return hits / total if total else 0
-
-print("Evaluating hit rate (before)...")
-score = hit_rate_at_k(queries, qrels_by_query, retrieve)
-print("Hit rate (before):", score)
-
-# ---- AFTER-CORPUS EVALUATION (fair comparison using scifact's OWN queries/qrels) ----
-
-print("Loading qrels and queries (after-corpus / scifact)...")
+queries_before = load_dataset("BeIR/nfcorpus", "queries")["queries"]
 queries_after = load_dataset("BeIR/scifact", "queries")["queries"]
+qrels_before_raw = load_dataset("BeIR/nfcorpus-qrels")["test"]
 qrels_after_raw = load_dataset("BeIR/scifact-qrels")["test"]
 
-# IMPORTANT: scifact qrels use integer ids, but queries_after/ids_after use string ids.
-# Cast everything to str so the lookups actually match.
-print("Indexing after-corpus qrels...")
-qrels_after_by_query = defaultdict(list)
-for r in qrels_after_raw:
-    qrels_after_by_query[str(r["query-id"])].append(str(r["corpus-id"]))
+# Everything is cast to str: scifact uses integer ids in qrels, string ids elsewhere
+ids_before = [str(d["_id"]) for d in corpus_before]
+ids_after = [str(d["_id"]) for d in corpus_after]
+texts_before = [d["text"] for d in corpus_before]
+texts_after = [d["text"] for d in corpus_after]
 
-# Build retriever on the after-corpus
-index_after = faiss.IndexFlatL2(emb_after.shape[1])
-index_after.add(emb_after)
+def group_qrels(raw):
+    grouped = defaultdict(set)
+    for r in raw:
+        grouped[str(r["query-id"])].add(str(r["corpus-id"]))
+    return grouped
 
-def retrieve_after(query, k=5):
-    """Returns doc IDs from the after-corpus — used for evaluation against scifact qrels."""
-    q_emb = model.encode([query])
-    distances, indices = index_after.search(q_emb, k)
-    return [ids_after[i] for i in indices[0]]
+qrels_before = group_qrels(qrels_before_raw)
+qrels_after = group_qrels(qrels_after_raw)
 
-print("Evaluating hit rate (after, fair comparison)...")
-score_after = hit_rate_at_k(queries_after, qrels_after_by_query, retrieve_after)
-print("Hit rate (after, fair comparison):", score_after)
+# Keep only queries that have test qrels (these are the ones we evaluate on)
+qids_before = [str(q["_id"]) for q in queries_before if str(q["_id"]) in qrels_before]
+qtexts_before = [q["text"] for q in queries_before if str(q["_id"]) in qrels_before]
+qids_after = [str(q["_id"]) for q in queries_after if str(q["_id"]) in qrels_after]
+qtexts_after = [q["text"] for q in queries_after if str(q["_id"]) in qrels_after]
+
+print("Docs before/after:", len(ids_before), len(ids_after))
+print("Queries before/after:", len(qids_before), len(qids_after))
+
+# Load the embedding model only if something needs encoding
+_model = None
+def get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        print("Loading embedding model...")
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
+
+def embed(texts, path):
+    if os.path.exists(path):
+        print("Loading cached", path)
+        return np.load(path)
+    print("Encoding ->", path)
+    emb = get_model().encode(texts, show_progress_bar=True)
+    np.save(path, emb)
+    return emb
+
+emb_before = embed(texts_before, "emb_before.npy")
+emb_after = embed(texts_after, "emb_after.npy")
+q_before = embed(qtexts_before, "q_before.npy")
+q_after = embed(qtexts_after, "q_after.npy")
+print("Shapes:", emb_before.shape, emb_after.shape, q_before.shape, q_after.shape)
+
+# Save ids so teammates can line embeddings up with documents and queries
+for name, obj in [("ids_before", ids_before), ("ids_after", ids_after),
+                  ("qids_before", qids_before), ("qids_after", qids_after)]:
+    with open(name + ".json", "w") as f:
+        json.dump(obj, f)
+
+def build_index(emb):
+    index = faiss.IndexFlatL2(emb.shape[1])
+    index.add(emb.astype("float32"))
+    return index
+
+def hit_rate(q_emb, qids, qrels, index, ids, k=K):
+    _, idx = index.search(q_emb.astype("float32"), k)
+    hits = 0
+    for qid, row in zip(qids, idx):
+        if qrels[qid] & {ids[i] for i in row}:
+            hits += 1
+    return hits / len(qids)
+
+index_before = build_index(emb_before)
+index_after = build_index(emb_after)
+
+print("Hit rate (before):", hit_rate(q_before, qids_before, qrels_before, index_before, ids_before))
+print("Hit rate (after, own queries):", hit_rate(q_after, qids_after, qrels_after, index_after, ids_after))
