@@ -1,0 +1,13 @@
+cluster_id,total_documents,nfcorpus_count,scifact_count,nfcorpus_within_cluster_pct,scifact_within_cluster_pct,nfcorpus_domain_share_pct,scifact_domain_share_pct,domain_share_difference_percentage_points,top_terms
+0,705,70,635,9.929078014184396,90.0709219858156,1.9267822736030829,12.251591742234227,10.324809468631145,"cells, immune, cell, il, inflammatory, infection, mice, responses, activation, antigen"
+1,645,595,50,92.24806201550388,7.751937984496124,16.377649325626205,0.9646922631680493,-15.412957062458156,"antioxidant, effects, human, compounds, extract, effect, acid, dietary, activity, tea"
+2,772,130,642,16.83937823834197,83.16062176165804,3.5783099366914395,12.386648659077753,8.808338722386313,"cancer, tumor, cells, cell, expression, tumors, growth, human, patients, cancer cells"
+3,512,200,312,39.0625,60.9375,5.505092210294523,6.019679722168628,0.5145875118741055,"patients, risk, coronary, cardiovascular, disease, heart, 95, blood, artery, pressure"
+4,1040,13,1027,1.25,98.75,0.35783099366914395,19.814779085471734,19.45694809180259,"dna, gene, protein, genome, genes, rna, cells, chromatin, transcription, proteins"
+5,1004,893,111,88.94422310756973,11.055776892430279,24.580236718965043,2.1416168242330698,-22.438619894731975,"diet, intake, dietary, consumption, fat, food, risk, study, weight, health"
+6,477,370,107,77.56813417190776,22.431865828092242,10.184420589044867,2.064441443179626,-8.11997914586524,"cancer, risk, breast, breast cancer, 95, ci, women, 95 ci, cancer risk, intake"
+7,617,288,329,46.677471636953,53.322528363047,7.927332782824112,6.347675091645765,-1.5796576911783466,"infection, patients, malaria, disease, infections, transmission, virus, prevalence, hiv, children"
+8,857,11,846,1.2835472578763127,98.71645274212369,0.30278007156619874,16.322593092803395,16.019813021237194,"cells, cell, stem, stem cells, expression, neurons, protein, differentiation, signaling, embryonic"
+9,986,345,641,34.98985801217039,65.01014198782961,9.49628406275805,12.367354813814393,2.871070751056342,"patients, treatment, study, health, care, results, clinical, use, years, age"
+10,604,188,416,31.125827814569536,68.87417218543047,5.174786677676851,8.026239629558171,2.8514529518813205,"insulin, mice, obesity, metabolic, induced, glucose, adipose, increased, metabolism, protein"
+11,597,530,67,88.77721943048576,11.222780569514239,14.588494357280485,1.2926876326451862,-13.295806724635298,"exposure, concentrations, fish, food, samples, levels, products, consumption, human, meat"
