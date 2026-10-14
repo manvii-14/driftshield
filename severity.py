@@ -10,7 +10,7 @@ q_after    = np.load("q_after.npy")      # SciFact queries
 
 print("Shapes:", emb_before.shape, emb_after.shape, q_before.shape, q_after.shape)
 
-N = 150  # sample size — used consistently everywhere
+N = 150  # sample size, used consistently everywhere
 
 KEY_MMD = "mmd"
 KEY_COSINE = "cosine_centroid"
@@ -40,16 +40,21 @@ query_baseline = build_baseline(q_before)
 print("Doc baseline MMD range:", min(doc_baseline["mmd"]), "to", max(doc_baseline["mmd"]))
 print("Query baseline MMD range:", min(query_baseline["mmd"]), "to", max(query_baseline["mmd"]))
 
-# ---- Step 3: Real NFCorpus vs SciFact scores ----
+# ---- Step 3: Real NFCorpus vs SciFact scores (random samples) ----
+rng_real = np.random.RandomState(123)
+
+def pick(X, n=N):
+    return X[rng_real.choice(len(X), min(n, len(X)), replace=False)]
+
 print("Computing real document drift...")
-doc_report = drift_report(emb_before[:N], emb_after[:N], n=N)
+doc_report = drift_report(pick(emb_before), pick(emb_after), n=N)
 
 print("Computing real query drift...")
-query_report = drift_report(q_before[:N], q_after[:N], n=N)
+query_report = drift_report(pick(q_before), pick(q_after), n=N)
 
 print("Computing pooled drift (docs + queries combined)...")
-pooled_before = np.vstack([emb_before[:N], q_before[:N]])
-pooled_after  = np.vstack([emb_after[:N], q_after[:N]])
+pooled_before = np.vstack([pick(emb_before, N // 2), pick(q_before, N // 2)])
+pooled_after  = np.vstack([pick(emb_after, N // 2), pick(q_after, N // 2)])
 pooled_report = drift_report(pooled_before, pooled_after, n=N)
 
 print("Doc MMD:", doc_report[KEY_MMD])
@@ -73,6 +78,11 @@ pooled_severity = classify_severity(pooled_report[KEY_MMD], doc_baseline["mmd"])
 print("Document drift severity:", doc_severity)
 print("Query drift severity:", query_severity)
 print("Pooled drift severity:", pooled_severity)
+
+# Ratio of each real score to its baseline maximum (for the report text)
+print("Doc ratio to baseline max: %.1fx" % (doc_report[KEY_MMD] / max(doc_baseline["mmd"])))
+print("Query ratio to baseline max: %.1fx" % (query_report[KEY_MMD] / max(query_baseline["mmd"])))
+print("Pooled ratio to baseline max: %.1fx" % (pooled_report[KEY_MMD] / max(doc_baseline["mmd"])))
 
 # ---- Step 5: Chart ----
 fig, ax = plt.subplots(figsize=(8, 5))
